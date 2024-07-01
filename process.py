@@ -242,16 +242,6 @@ def act_params(shop_id: str, item_id: str):
     return params
 
 
-# 消息推送
-#def send_msg(title, content):
-#    if config.PUSH_TOKEN is None:
-#        return
-#    url = 'http://www.pushplus.plus/send'
-#    r = requests.get(url, params={'token': config.PUSH_TOKEN,
-#                                  'title': title,
-#                                  'content': content})
-#    logging.info(f'通知推送结果：{r.status_code, r.text}')
-
 def send_msg(title, content):
     for token in config.push_tokens:
          r = requests.get(url, params={'token': token.strip(),
@@ -259,6 +249,12 @@ def send_msg(title, content):
                                   'content': content})
     logging.info(f'通知推送结果：{r.status_code, r.text}')
 
+def send_msg2(title, content):
+    for token2 in config.push_tokens2:
+         r = requests.get(url, params={'token': token2.strip(),
+                                  'title': title,
+                                  'content': content})
+    logging.info(f'通知推送结果：{r.status_code, r.text}')
 
 # 核心代码，执行预约
 def reservation(params: dict, mobile: str):
