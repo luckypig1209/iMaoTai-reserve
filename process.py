@@ -249,13 +249,6 @@ def send_msg(title, content):
                                   'content': content})
     logging.info(f'通知推送结果：{r.status_code, r.text}')
 
-def send_msg2(title, content):
-    for token2 in config.push_token2:
-         r = requests.get(url, params={'token': token2.strip(),
-                                  'title': title,
-                                  'content': content})
-    logging.info(f'通知推送结果：{r.status_code, r.text}')
-
 # 核心代码，执行预约
 def reservation(params: dict, mobile: str):
     params.pop('userId')
