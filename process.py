@@ -243,14 +243,14 @@ def act_params(shop_id: str, item_id: str):
 
 
 def send_msg(title, content):
-    for token in config.push_tokens:
+    for token in config.push_token:
          r = requests.get(url, params={'token': token.strip(),
                                   'title': title,
                                   'content': content})
     logging.info(f'通知推送结果：{r.status_code, r.text}')
 
 def send_msg2(title, content):
-    for token2 in config.push_tokens2:
+    for token2 in config.push_token2:
          r = requests.get(url, params={'token': token2.strip(),
                                   'title': title,
                                   'content': content})
