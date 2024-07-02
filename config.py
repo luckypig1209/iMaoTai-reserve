@@ -20,7 +20,7 @@ push plus 微信推送,具体使用参考  https://www.pushplus.plus
 '''
 #PUSH_TOKEN = os.environ.get("PUSHPLUS_KEY")
 
-PUSH_TOKENS = os.environ.get("8d290fdba592429eb6cfb6fbcafa0624", "a1c18fd0a20a41949571b87f9fe68836").split(',')
+PUSH_TOKEN = os.environ.get("8d290fdba592429eb6cfb6fbcafa0624", "a1c18fd0a20a41949571b87f9fe68836").split(',')
 
 
 '''
