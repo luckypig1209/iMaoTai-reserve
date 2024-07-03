@@ -251,7 +251,8 @@ def send_msg(title, content):
                                   'title': title,
                                   'content': content})
     logging.info(f'通知推送结果：{r.status_code, r.text}')
-    
+
+
 # 核心代码，执行预约
 def reservation(params: dict, mobile: str):
     params.pop('userId')
