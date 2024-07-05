@@ -1,59 +1,85 @@
-import os
+import datetime
+import logging
+import sys
 
-'''
-*********** 商品配置 ***********
-'''
-ITEM_MAP = {
-    "10941": "53%vol 500ml贵州茅台酒（甲辰龙年）",
-    "10942": "53%vol 375ml×2贵州茅台酒（甲辰龙年）",
-    "10056": "53%vol 500ml茅台1935",
-    "2478": "53%vol 500ml贵州茅台酒（珍品）"
-}
+import config
+import login
+import process
+import privateCrypt
 
-ITEM_CODES = ['10941', '10942']   # 需要预约的商品(默认只预约2个赚钱的茅子)
+DATE_FORMAT = "%m/%d/%Y %H:%M:%S %p"
+TODAY = datetime.date.today().strftime("%Y%m%d")
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s  %(filename)s : %(levelname)s  %(message)s',  # 定义输出log的格式
+                    stream=sys.stdout,
+                    datefmt=DATE_FORMAT)
 
-'''
-*********** 消息推送配置 ***********
-push plus 微信推送,具体使用参考  https://www.pushplus.plus
-如没有配置则不推送消息
-为了安全,这里使用的环境配置.git里面请自行百度如何添加secrets.pycharm也可以自主添加.如果你实在不会,就直接用明文吧（O.o）
-'''
-PUSH_TOKEN = os.environ.get("PUSHPLUS_KEY")
+print(r'''
+**************************************
+    欢迎使用i茅台自动预约工具
+    作者GitHub：https://github.com/3 9 7 1 7 9 4 5 9
+    vx：L 3 9 7 1 7 9 4 5 9 加好友注明来意
+**************************************
+''')
 
+process.get_current_session_id()
 
-'''
-*********** 地图配置 ***********
-获取地点信息,这里用的高德api,需要自己去高德开发者平台申请自己的key
-'''
-AMAP_KEY = os.environ.get("GAODE_KEY")
+# 校验配置文件是否存在
+configs = login.config
+if len(configs.sections()) == 0:
+    logging.error("配置文件未找到配置")
+    sys.exit(1)
 
+aes_key = privateCrypt.get_aes_key()
 
-'''
-*********** 个人账户认证配置 ***********
-个人用户 credentials 路径
-不配置,使用默认路径,在项目目录中;如果需要配置,你自己应该也会配置路径
-例如： CREDENTIALS_PATH = './myConfig/credentials'
-'''
-CREDENTIALS_PATH = None
+s_title = '茅台预约成功'
+s_content = ""
 
+for section in configs.sections():
+    if TODAY > configs.get(section, 'enddate'):
+        continue
+    mobile = privateCrypt.decrypt_aes_ecb(section, aes_key)
+    province = configs.get(section, 'province')
+    city = configs.get(section, 'city')
+    token = configs.get(section, 'token')
+    userId = privateCrypt.decrypt_aes_ecb(configs.get(section, 'userid'), aes_key)
+    lat = configs.get(section, 'lat')
+    lng = configs.get(section, 'lng')
 
-'''
-*********** 个人加解密密钥 ***********
-为了解决credentials中手机号和token都暴露的问题,采用AES私钥加密,保障账号安全.
-这里采用ECB,没有采用CBC.如果是固定iv,那加一层也没多大意义;如果是不固定iv,那每次添加账号判重的时候都认为不一样,除非你每次再把配置全部反解密,去校验去重,得不偿失.
-key用了SHA-256转化,所以这里可以配置任意字符串,不用遵守AES算法要求密钥长度必须是16、24或32字节
-如果不会配置环境变量(建议学习)、不care安全性、非开源运行,你可以在这里明文指定,eg:PRIVATE_AES_KEY = '666666'
-ps:本来是写了判断是否配置密钥，可以自由选择明文保存的方式。但是还是为了安全性，限制了必须使用AES加密。哪怕是明文密钥。
-'''
-PRIVATE_AES_KEY = os.environ.get("PRIVATE_AES_KEY")
+    p_c_map, source_data = process.get_map(lat=lat, lng=lng)
 
+    process.UserId = userId
+    process.TOKEN = token
+    process.init_headers(user_id=userId, token=token, lng=lng, lat=lat)
+    # 根据配置中，要预约的商品ID，城市 进行自动预约
+    try:
+        for item in config.ITEM_CODES:
+            max_shop_id = process.get_location_count(province=province,
+                                                     city=city,
+                                                     item_code=item,
+                                                     p_c_map=p_c_map,
+                                                     source_data=source_data,
+                                                     lat=lat,
+                                                     lng=lng)
+            # print(f'max shop id : {max_shop_id}')
+            if max_shop_id == '0':
+                continue
+            shop_info = source_data.get(str(max_shop_id))
+            title = config.ITEM_MAP.get(item)
+            shopInfo = f'商品:{title};门店:{shop_info["name"]}'
+            logging.info(shopInfo)
+            reservation_params = process.act_params(max_shop_id, item)
+            # 核心预约步骤
+            r_success, r_content = process.reservation(reservation_params, mobile)
+            # 为了防止漏掉推送异常，所有只要有一个异常，标题就显示失败
+            if not r_success:
+                s_title = '！！失败！！茅台预约'
+            s_content = s_content + r_content + shopInfo + "\n"
+            # 领取小茅运和耐力值
+            process.getUserEnergyAward(mobile)
+    except BaseException as e:
+        print(e)
+        logging.error(e)
 
-'''
-*********** 预约规则配置 ************
-因为目前支持代提的还是少,所以建议默认预约最近的门店
-'''
-_RULES = {
-    'MIN_DISTANCE': 0,   # 预约你的位置最近的门店
-    'MAX_SALES': 1,      # 预约本市出货量最大的门店
-}
-RESERVE_RULE = 0         # 在这里配置你的规则，只能选择其中一个
+# 推送消息
+process.send_msg(s_title, s_content)
